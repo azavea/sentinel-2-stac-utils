@@ -1,6 +1,7 @@
 package com.azavea.s2stac
 
 import com.azavea.s2stac.datamodel._
+import com.azavea.s2stac.datamodel.types.DataPath
 import com.azavea.s2stac.datamodel.types.{InventoryPath, OutputCatalogRoot}
 
 import cats.implicits._
@@ -31,6 +32,20 @@ object Commands {
       help = "Root prefix locally or S3 to write output Sentinel-2 STAC catalog"
     )
 
+  private val productInfoPathOpt: Opts[DataPath] =
+    Opts.option[DataPath]("product-info-path", help = "Path to a Sentinel-2 L1C productInfo.json locally or on S3")
+
+  case class ProductInfo(inputPath: DataPath)
+
+  val productInfoOpts: Opts[ProductInfo] = productInfoPathOpt map { ProductInfo }
+
+  private val tileInfoPathOpt: Opts[DataPath] =
+    Opts.option[DataPath]("tile-info-path", help = "Path to a Sentinel-2 L1C tileInfo.json locally or on S3")
+
+  case class TileInfo(inputPath: DataPath)
+
+  val tileInfoOpts: Opts[TileInfo] = tileInfoPathOpt map { TileInfo }
+
   case class CreateCatalog(
       collection: S2Collection,
       inventoryPath: InventoryPath,
@@ -42,4 +57,16 @@ object Commands {
     inventoryFileOpt,
     outputCatalogRootOpt
   ).mapN { CreateCatalog }
+
+  val createCatalogCommand = Opts.subcommand("create", "Create a catalog from inventory data") {
+    createCatalogOpts
+  }
+
+  val productInfoCommand = Opts.subcommand("product-info", "Read product info json") {
+    productInfoOpts
+  }
+
+  val tileInfoCommand = Opts.subcommand("tile-info", "Read tile info json") {
+    tileInfoOpts
+  }
 }
