@@ -22,26 +22,50 @@ object HelloWorld
   override def main: Opts[IO[ExitCode]] =
     (Commands.createCatalogCommand orElse Commands.productInfoCommand orElse Commands.tileInfoCommand)
       .map({
-        case CreateCatalog(_, _, outputCatalogRoot) =>
+        case CreateCatalog(collection, _, outputCatalogRoot) =>
           Resources.s3[IO].use {
             s3Client =>
-              val rows = List(
-                InventoryCsvRow(
-                  "sentinel-s2-l1c",
-                  DataPath("tiles/48/X/WG/2019/8/21/0/productInfo.json"),
-                  1234,
-                  Instant.now
-                ),
-                InventoryCsvRow(
-                  "sentinel-s2-l1c",
-                  DataPath("tiles/48/X/WG/2019/8/21/1/productInfo.json"),
-                  1234,
-                  Instant.now
-                )
-              )
+              val rows = collection match {
+                case L1C =>
+                  List(
+                    InventoryCsvRow(
+                      "sentinel-s2-l1c",
+                      DataPath("tiles/48/X/WG/2019/8/21/0/productInfo.json"),
+                      1234,
+                      Instant.now
+                    ),
+                    InventoryCsvRow(
+                      "sentinel-s2-l1c",
+                      DataPath("tiles/48/X/WG/2019/8/21/1/productInfo.json"),
+                      1234,
+                      Instant.now
+                    )
+                  )
+                case L2A =>
+                  List(
+                    InventoryCsvRow(
+                      "sentinel-s2-l2a",
+                      DataPath("tiles/6/U/UG/2019/1/10/0/productInfo.json"),
+                      1234,
+                      Instant.now
+                    ),
+                    InventoryCsvRow(
+                      "sentinel-s2-l1c",
+                      DataPath("tiles/6/U/UG/2019/1/15/0/productInfo.json"),
+                      1234,
+                      Instant.now
+                    )
+                  )
+              }
+
               val initialState = CrawlerState.withRemaining(rows)(CrawlerState.initial)
               val crawler =
-                new Crawler[IO](new SyncJsonReader[IO](s3Client), new SyncJsonWriter[IO](s3Client), outputCatalogRoot)
+                new Crawler[IO](
+                  new SyncJsonReader[IO](s3Client),
+                  new SyncJsonWriter[IO](s3Client),
+                  collection,
+                  outputCatalogRoot
+                )
               crawler.run
                 .runS(initialState) flatMap { state =>
                 crawler.writeCatalogs(state)
