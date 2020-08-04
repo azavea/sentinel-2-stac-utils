@@ -1,6 +1,6 @@
 package com.azavea.s2stac
 
-import com.azavea.s2stac.Commands.{CreateCatalog, ProductInfo, TileInfo}
+import com.azavea.s2stac.Commands.{CmdProductInfo, CmdTileInfo, CreateCatalog}
 import com.azavea.s2stac.crawler.Crawler
 import com.azavea.s2stac.datamodel._
 import com.azavea.s2stac.datamodel.types.DataPath
@@ -47,15 +47,15 @@ object HelloWorld
                 crawler.writeCatalogs(state)
               }
           }
-        case ProductInfo(inputPath) =>
+        case CmdProductInfo(inputPath) =>
           Resources.s3[IO].use { s3Client =>
-            (new SyncJsonReader[IO](s3Client)).fromPath[L1CProductInfo](inputPath)
+            (new SyncJsonReader[IO](s3Client)).fromPath[ProductInfo](inputPath)
           } flatMap { result =>
             printDebug[IO](s"Debug result for product info read: $result")
           }
-        case TileInfo(inputPath) =>
+        case CmdTileInfo(inputPath) =>
           Resources.s3[IO].use { s3Client =>
-            (new SyncJsonReader[IO](s3Client)).fromPath[L1CTileInfo](inputPath)
+            (new SyncJsonReader[IO](s3Client)).fromPath[TileInfo](inputPath)
           } flatMap { result =>
             printDebug[IO](s"Debug result for tile info read: $result")
           }

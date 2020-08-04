@@ -1,7 +1,7 @@
 package com.azavea.s2stac.crawler
 
 import com.azavea.s2stac.datamodel.types._
-import com.azavea.s2stac.datamodel.{CrawlerState, History, InventoryCsvRow, L1CProductInfo, L1CTileInfo}
+import com.azavea.s2stac.datamodel.{CrawlerState, History, InventoryCsvRow, ProductInfo, TileInfo}
 import com.azavea.s2stac.jsonio.{JsonReader, JsonWriter}
 import com.azavea.s2stac.{printInfo, printWarn}
 import com.azavea.stac4s._
@@ -117,7 +117,7 @@ class Crawler[F[_]: Sync: Parallel](reader: JsonReader[F], writer: JsonWriter[F]
       ()
     }
 
-  private def writeItem(history: CrawlerState, productInfo: L1CProductInfo, tileInfo: L1CTileInfo): F[CrawlerState] = {
+  private def writeItem(history: CrawlerState, productInfo: ProductInfo, tileInfo: TileInfo): F[CrawlerState] = {
 
     // for each level of nesting
     // build the relevant history
@@ -426,7 +426,7 @@ class Crawler[F[_]: Sync: Parallel](reader: JsonReader[F], writer: JsonWriter[F]
       }
     }
 
-  private def getItemBandAssets(tileInfo: L1CTileInfo): Map[String, StacItemAsset] = {
+  private def getItemBandAssets(tileInfo: TileInfo): Map[String, StacItemAsset] = {
     Map(
       s2Bands
         .map({ (band: Band) =>
@@ -444,7 +444,7 @@ class Crawler[F[_]: Sync: Parallel](reader: JsonReader[F], writer: JsonWriter[F]
     )
   }
 
-  private def getMetadataItemAssets(tileInfo: L1CTileInfo): Map[String, StacItemAsset] = {
+  private def getMetadataItemAssets(tileInfo: TileInfo): Map[String, StacItemAsset] = {
     Map(
       "info" -> StacItemAsset(
         s"s3://${l1cBucket}/${tileInfo.path}/tileInfo.json",
@@ -477,7 +477,7 @@ class Crawler[F[_]: Sync: Parallel](reader: JsonReader[F], writer: JsonWriter[F]
     )
   }
 
-  private def makeItem(productInfo: L1CProductInfo, tileInfo: L1CTileInfo): StacItem = {
+  private def makeItem(productInfo: ProductInfo, tileInfo: TileInfo): StacItem = {
     val reprojectedDataGeom = tileInfo.tileDataGeometry.geom.reproject(tileInfo.tileDataGeometry.crs, LatLng)
     val dataExtent          = reprojectedDataGeom.extent
     val eoExt               = EOItemExtension(s2Bands, Some(tileInfo.cloudyPixelPercentage.value))

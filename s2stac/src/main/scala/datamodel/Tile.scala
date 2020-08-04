@@ -8,16 +8,16 @@ import io.circe.{Decoder, Encoder}
 
 import java.time.Instant
 
-final case class L1CTile(
+final case class Tile(
     path: DataPath,
     timestamp: Instant,
     utmZone: UtmZone,
     latitudeBand: UtmLatitudeBand,
     gridSquare: String,
-    datastrip: L1CDataStrip
+    datastrip: DataStrip
 )
 
-object L1CTile {
-  implicit val decL1CTile: Decoder[L1CTile] = deriveDecoder
-  implicit val encL1CTile: Encoder[L1CTile] = deriveEncoder
+object Tile {
+  implicit val decTile: Decoder[Tile] = deriveDecoder
+  implicit val encTile: Encoder[Tile] = deriveEncoder
 }

@@ -10,23 +10,23 @@ import io.circe.{Decoder, Encoder}
 
 import java.time.Instant
 
-final case class L1CTileInfo(
+final case class TileInfo(
     path: DataPath,
     timestamp: Instant,
     utmZone: UtmZone,
     latitudeBand: UtmLatitudeBand,
     gridSquare: String,
-    datastrip: L1CDataStrip,
+    datastrip: DataStrip,
     tileGeometry: GeoJSONWithCRS[Polygon],
     tileDataGeometry: GeoJSONWithCRS[Polygon],
     tileOrigin: GeoJSONWithCRS[Point],
     dataCoveragePercentage: DataCoverage,
     cloudyPixelPercentage: CloudCoverage,
-    productName: L1CName,
+    productName: ProductName,
     productPath: DataPath
 )
 
-object L1CTileInfo {
-  implicit val decTileInfo: Decoder[L1CTileInfo] = deriveDecoder
-  implicit val encTileInfo: Encoder[L1CTileInfo] = deriveEncoder
+object TileInfo {
+  implicit val decTileInfo: Decoder[TileInfo] = deriveDecoder
+  implicit val encTileInfo: Encoder[TileInfo] = deriveEncoder
 }
