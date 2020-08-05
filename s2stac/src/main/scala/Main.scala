@@ -50,7 +50,7 @@ object HelloWorld
                       Instant.now
                     ),
                     InventoryCsvRow(
-                      "sentinel-s2-l1c",
+                      "sentinel-s2-l2a",
                       DataPath("tiles/6/U/UG/2019/1/15/0/productInfo.json"),
                       1234,
                       Instant.now
