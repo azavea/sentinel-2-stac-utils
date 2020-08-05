@@ -1,6 +1,6 @@
 package com.azavea.s2stac
 
-import com.azavea.s2stac.Commands.{CreateCatalog, ProductInfo, TileInfo}
+import com.azavea.s2stac.Commands.{CmdProductInfo, CmdTileInfo, CreateCatalog}
 import com.azavea.s2stac.crawler.Crawler
 import com.azavea.s2stac.datamodel._
 import com.azavea.s2stac.datamodel.types.DataPath
@@ -22,40 +22,64 @@ object HelloWorld
   override def main: Opts[IO[ExitCode]] =
     (Commands.createCatalogCommand orElse Commands.productInfoCommand orElse Commands.tileInfoCommand)
       .map({
-        case CreateCatalog(_, _, outputCatalogRoot) =>
+        case CreateCatalog(collection, _, outputCatalogRoot) =>
           Resources.s3[IO].use {
             s3Client =>
-              val rows = List(
-                InventoryCsvRow(
-                  "sentinel-s2-l1c",
-                  DataPath("tiles/48/X/WG/2019/8/21/0/productInfo.json"),
-                  1234,
-                  Instant.now
-                ),
-                InventoryCsvRow(
-                  "sentinel-s2-l1c",
-                  DataPath("tiles/48/X/WG/2019/8/21/1/productInfo.json"),
-                  1234,
-                  Instant.now
-                )
-              )
+              val rows = collection match {
+                case L1C =>
+                  List(
+                    InventoryCsvRow(
+                      "sentinel-s2-l1c",
+                      DataPath("tiles/48/X/WG/2019/8/21/0/productInfo.json"),
+                      1234,
+                      Instant.now
+                    ),
+                    InventoryCsvRow(
+                      "sentinel-s2-l1c",
+                      DataPath("tiles/48/X/WG/2019/8/21/1/productInfo.json"),
+                      1234,
+                      Instant.now
+                    )
+                  )
+                case L2A =>
+                  List(
+                    InventoryCsvRow(
+                      "sentinel-s2-l2a",
+                      DataPath("tiles/6/U/UG/2019/1/10/0/productInfo.json"),
+                      1234,
+                      Instant.now
+                    ),
+                    InventoryCsvRow(
+                      "sentinel-s2-l2a",
+                      DataPath("tiles/6/U/UG/2019/1/15/0/productInfo.json"),
+                      1234,
+                      Instant.now
+                    )
+                  )
+              }
+
               val initialState = CrawlerState.withRemaining(rows)(CrawlerState.initial)
               val crawler =
-                new Crawler[IO](new SyncJsonReader[IO](s3Client), new SyncJsonWriter[IO](s3Client), outputCatalogRoot)
+                new Crawler[IO](
+                  new SyncJsonReader[IO](s3Client),
+                  new SyncJsonWriter[IO](s3Client),
+                  collection,
+                  outputCatalogRoot
+                )
               crawler.run
                 .runS(initialState) flatMap { state =>
                 crawler.writeCatalogs(state)
               }
           }
-        case ProductInfo(inputPath) =>
+        case CmdProductInfo(inputPath) =>
           Resources.s3[IO].use { s3Client =>
-            (new SyncJsonReader[IO](s3Client)).fromPath[L1CProductInfo](inputPath)
+            (new SyncJsonReader[IO](s3Client)).fromPath[ProductInfo](inputPath)
           } flatMap { result =>
             printDebug[IO](s"Debug result for product info read: $result")
           }
-        case TileInfo(inputPath) =>
+        case CmdTileInfo(inputPath) =>
           Resources.s3[IO].use { s3Client =>
-            (new SyncJsonReader[IO](s3Client)).fromPath[L1CTileInfo](inputPath)
+            (new SyncJsonReader[IO](s3Client)).fromPath[TileInfo](inputPath)
           } flatMap { result =>
             printDebug[IO](s"Debug result for tile info read: $result")
           }

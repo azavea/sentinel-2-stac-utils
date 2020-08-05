@@ -20,15 +20,15 @@ final case class InventoryCsvRow(
 
 object InventoryCsvRow {
 
-  def getProductInfo[F[_]: Sync](reader: JsonReader[F])(row: InventoryCsvRow): F[Either[Error, L1CProductInfo]] = {
+  def getProductInfo[F[_]: Sync](reader: JsonReader[F])(row: InventoryCsvRow): F[Either[Error, ProductInfo]] = {
     val s3Path = DataPath(NonEmptyString.unsafeFrom(s"s3://${row.bucket}/${row.key}"))
-    reader.fromPath[L1CProductInfo](s3Path)
+    reader.fromPath[ProductInfo](s3Path)
   }
 
-  def getTileInfo[F[_]: Sync](reader: JsonReader[F])(row: InventoryCsvRow): F[Either[Error, L1CTileInfo]] = {
+  def getTileInfo[F[_]: Sync](reader: JsonReader[F])(row: InventoryCsvRow): F[Either[Error, TileInfo]] = {
     val s3Path = DataPath(
       NonEmptyString.unsafeFrom(s"""s3://${row.bucket}/${row.key.value.replace("productInfo", "tileInfo")}""")
     )
-    reader.fromPath[L1CTileInfo](s3Path)
+    reader.fromPath[TileInfo](s3Path)
   }
 }

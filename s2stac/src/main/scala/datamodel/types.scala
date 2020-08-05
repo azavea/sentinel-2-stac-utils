@@ -14,8 +14,8 @@ import java.util.UUID
 object types {
   @newtype case class InventoryPath(value: NonEmptyString)
   @newtype case class OutputCatalogRoot(value: NonEmptyString)
-  @newtype case class L1CName(value: NonEmptyString)
-  @newtype case class L1CId(value: UUID)
+  @newtype case class ProductName(value: NonEmptyString)
+  @newtype case class ProductId(value: UUID)
   @newtype case class DataPath(value: NonEmptyString)
   @newtype case class DatatakeIdentifier(value: NonEmptyString)
   @newtype case class DataStripId(value: NonEmptyString)

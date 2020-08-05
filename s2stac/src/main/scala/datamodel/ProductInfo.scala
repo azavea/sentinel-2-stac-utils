@@ -8,19 +8,19 @@ import io.circe.{Decoder, Encoder}
 
 import java.time.Instant
 
-final case class L1CProductInfo(
-    name: L1CName,
-    id: L1CId,
+final case class ProductInfo(
+    name: ProductName,
+    id: ProductId,
     path: DataPath,
     timestamp: Instant,
     datatakeIdentifier: DatatakeIdentifier,
     sciHubIngestion: Instant,
     s3Ingestion: Instant,
-    tiles: List[L1CTile],
-    datastrips: List[L1CDataStrip]
+    tiles: List[Tile],
+    datastrips: List[DataStrip]
 )
 
-object L1CProductInfo {
-  implicit val decL1CProductInfo: Decoder[L1CProductInfo] = deriveDecoder
-  implicit val encL1CProductInfo: Encoder[L1CProductInfo] = deriveEncoder
+object ProductInfo {
+  implicit val decProductInfo: Decoder[ProductInfo] = deriveDecoder
+  implicit val encProductInfo: Encoder[ProductInfo] = deriveEncoder
 }

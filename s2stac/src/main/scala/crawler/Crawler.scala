@@ -1,7 +1,17 @@
 package com.azavea.s2stac.crawler
 
 import com.azavea.s2stac.datamodel.types._
-import com.azavea.s2stac.datamodel.{CrawlerState, History, InventoryCsvRow, L1CProductInfo, L1CTileInfo}
+import com.azavea.s2stac.datamodel.{
+  BandName,
+  CrawlerState,
+  History,
+  InventoryCsvRow,
+  L1C,
+  L2A,
+  ProductInfo,
+  S2Collection,
+  TileInfo
+}
 import com.azavea.s2stac.jsonio.{JsonReader, JsonWriter}
 import com.azavea.s2stac.{printInfo, printWarn}
 import com.azavea.stac4s._
@@ -12,7 +22,6 @@ import cats.Parallel
 import cats.data.{NonEmptyList, StateT}
 import cats.effect.Sync
 import cats.implicits._
-import eu.timepit.refined._
 import eu.timepit.refined.auto._
 import eu.timepit.refined.types.string.NonEmptyString
 import geotrellis.proj4.LatLng
@@ -23,9 +32,17 @@ import io.circe.syntax._
 
 import java.time.{Instant, ZoneId, ZonedDateTime}
 
-class Crawler[F[_]: Sync: Parallel](reader: JsonReader[F], writer: JsonWriter[F], catalogRoot: OutputCatalogRoot) {
+class Crawler[F[_]: Sync: Parallel](
+    reader: JsonReader[F],
+    writer: JsonWriter[F],
+    collection: S2Collection,
+    catalogRoot: OutputCatalogRoot
+) {
 
-  val l1cBucket = "sentinel-s2-l1c"
+  val bucket = collection match {
+    case L1C => "sentinel-s2-l1c"
+    case L2A => "sentinel-s2-l2a"
+  }
 
   // stashed to need it _eventually_
   val rootCollection = StacCollection(
@@ -117,7 +134,7 @@ class Crawler[F[_]: Sync: Parallel](reader: JsonReader[F], writer: JsonWriter[F]
       ()
     }
 
-  private def writeItem(history: CrawlerState, productInfo: L1CProductInfo, tileInfo: L1CTileInfo): F[CrawlerState] = {
+  private def writeItem(history: CrawlerState, productInfo: ProductInfo, tileInfo: TileInfo): F[CrawlerState] = {
 
     // for each level of nesting
     // build the relevant history
@@ -426,12 +443,32 @@ class Crawler[F[_]: Sync: Parallel](reader: JsonReader[F], writer: JsonWriter[F]
       }
     }
 
-  private def getItemBandAssets(tileInfo: L1CTileInfo): Map[String, StacItemAsset] = {
+  /*
+    L1C bands are under the same path
+    L2A bands are under paths differentiated by resolution
+    We collect highest resolution available for each band as image item assets
+   */
+  private def getBandHref(path: DataPath, bandName: String): String = {
+    collection match {
+      case L1C => s"s3://${bucket}/${path}/${bandName}.jp2"
+      case L2A =>
+        BandName.fromString(bandName) match {
+          case BandName.B01 | BandName.B09 | BandName.B10 =>
+            s"s3://${bucket}/${path}/R60m/${bandName}.jp2"
+          case BandName.B02 | BandName.B03 | BandName.B04 | BandName.B08 =>
+            s"s3://${bucket}/${path}/R10m/${bandName}.jp2"
+          case _ =>
+            s"s3://${bucket}/${path}/R20m/${bandName}.jp2"
+        }
+    }
+  }
+
+  private def getItemBandAssets(tileInfo: TileInfo): Map[String, StacItemAsset] = {
     Map(
       s2Bands
         .map({ (band: Band) =>
           band.name.value -> StacItemAsset(
-            s"s3://${l1cBucket}/${tileInfo.path}/${band.name}.jp2",
+            getBandHref(tileInfo.path, band.name),
             band.commonName map { _.value },
             None,
             Set(StacAssetRole.Data),
@@ -444,31 +481,39 @@ class Crawler[F[_]: Sync: Parallel](reader: JsonReader[F], writer: JsonWriter[F]
     )
   }
 
-  private def getMetadataItemAssets(tileInfo: L1CTileInfo): Map[String, StacItemAsset] = {
+  private def getMetadataItemAssets(tileInfo: TileInfo): Map[String, StacItemAsset] = {
+    /*
+      L1C has one true color image (TCI)
+      L2A has multiple TCIs, we choose to include the one with highest resolution available
+     */
+    val tciHref = collection match {
+      case L1C => s"s3://${bucket}/${tileInfo.path}/TCI.jp2"
+      case L2A => s"s3://${bucket}/${tileInfo.path}/R10m/TCI.jp2"
+    }
     Map(
       "info" -> StacItemAsset(
-        s"s3://${l1cBucket}/${tileInfo.path}/tileInfo.json",
+        s"s3://${bucket}/${tileInfo.path}/tileInfo.json",
         Some("Tile Info JSON"),
         None,
         Set(StacAssetRole.Metadata),
         Some(`application/json`)
       ),
       "thumbnail" -> StacItemAsset(
-        s"s3://${l1cBucket}/${tileInfo.path}/preview.jpg",
+        s"s3://${bucket}/${tileInfo.path}/preview.jpg",
         None,
         None,
         Set(StacAssetRole.Thumbnail),
         Some(`image/jpeg`)
       ),
       "xml-metadata" -> StacItemAsset(
-        s"s3://${l1cBucket}/${tileInfo.path}/metadata.xml",
+        s"s3://${bucket}/${tileInfo.path}/metadata.xml",
         None,
         None,
         Set(StacAssetRole.Metadata),
         Some(`application/xml`)
       ),
-      "tki" -> StacItemAsset(
-        s"s3://${l1cBucket}/${tileInfo.path}/TKI.jp2",
+      "tci" -> StacItemAsset(
+        tciHref,
         Some("True color image"),
         None,
         Set(StacAssetRole.Overview),
@@ -477,7 +522,7 @@ class Crawler[F[_]: Sync: Parallel](reader: JsonReader[F], writer: JsonWriter[F]
     )
   }
 
-  private def makeItem(productInfo: L1CProductInfo, tileInfo: L1CTileInfo): StacItem = {
+  private def makeItem(productInfo: ProductInfo, tileInfo: TileInfo): StacItem = {
     val reprojectedDataGeom = tileInfo.tileDataGeometry.geom.reproject(tileInfo.tileDataGeometry.crs, LatLng)
     val dataExtent          = reprojectedDataGeom.extent
     val eoExt               = EOItemExtension(s2Bands, Some(tileInfo.cloudyPixelPercentage.value))
@@ -506,7 +551,7 @@ class Crawler[F[_]: Sync: Parallel](reader: JsonReader[F], writer: JsonWriter[F]
         "sentinel:utm_zone"      -> tileInfo.utmZone.asJson,
         "sentinel:latitude_band" -> tileInfo.latitudeBand.asJson,
         "sentinel:grid_square"   -> tileInfo.gridSquare.asJson,
-        "sentinel:data_path"     -> s"s3://${l1cBucket}/${tileInfo.path}".asJson
+        "sentinel:data_path"     -> s"s3://${bucket}/${tileInfo.path}".asJson
       ).asJsonObject
     ).addExtensionFields(eoExt)
   }

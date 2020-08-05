@@ -2,3 +2,6 @@
 .bloop
 metals.sbt
 target
+
+# macOS
+.DS_Store

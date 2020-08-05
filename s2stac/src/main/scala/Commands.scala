@@ -35,16 +35,16 @@ object Commands {
   private val productInfoPathOpt: Opts[DataPath] =
     Opts.option[DataPath]("product-info-path", help = "Path to a Sentinel-2 L1C productInfo.json locally or on S3")
 
-  case class ProductInfo(inputPath: DataPath)
+  case class CmdProductInfo(inputPath: DataPath)
 
-  val productInfoOpts: Opts[ProductInfo] = productInfoPathOpt map { ProductInfo }
+  val productInfoOpts: Opts[CmdProductInfo] = productInfoPathOpt map { CmdProductInfo }
 
   private val tileInfoPathOpt: Opts[DataPath] =
     Opts.option[DataPath]("tile-info-path", help = "Path to a Sentinel-2 L1C tileInfo.json locally or on S3")
 
-  case class TileInfo(inputPath: DataPath)
+  case class CmdTileInfo(inputPath: DataPath)
 
-  val tileInfoOpts: Opts[TileInfo] = tileInfoPathOpt map { TileInfo }
+  val tileInfoOpts: Opts[CmdTileInfo] = tileInfoPathOpt map { CmdTileInfo }
 
   case class CreateCatalog(
       collection: S2Collection,
