@@ -491,9 +491,16 @@ class Crawler[F[_]: Sync: Parallel](
       case L2A => s"s3://${bucket}/${tileInfo.path}/R10m/TCI.jp2"
     }
     Map(
-      "info" -> StacItemAsset(
+      "tile-info" -> StacItemAsset(
         s"s3://${bucket}/${tileInfo.path}/tileInfo.json",
         Some("Tile Info JSON"),
+        None,
+        Set(StacAssetRole.Metadata),
+        Some(`application/json`)
+      ),
+      "product-info" -> StacItemAsset(
+        s"s3://${bucket}/${tileInfo.path}/productInfo.json",
+        Some("Product Info JSON"),
         None,
         Set(StacAssetRole.Metadata),
         Some(`application/json`)
