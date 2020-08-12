@@ -9,6 +9,7 @@ val DeclineVersion     = "1.2.0"
 val EmojiVersion       = "1.2.1"
 val FansiVersion       = "0.2.7"
 val GeoTrellisVersion  = "3.4.1"
+val KantanCsvVersion   = "0.6.1"
 val MonocleVersion     = "2.0.4"
 val NewtypeVersion     = "0.4.4"
 val RefinedVersion     = "0.9.14"
@@ -27,6 +28,9 @@ val s2StacDependencies = List(
   "com.monovore"                 %% "decline-effect"                 % DeclineVersion,
   "com.monovore"                 %% "decline-refined"                % DeclineVersion,
   "com.monovore"                 %% "decline"                        % DeclineVersion,
+  "com.nrinaudo"                 %% "kantan.csv"                     % KantanCsvVersion,
+  "com.nrinaudo"                 %% "kantan.csv-generic"             % KantanCsvVersion,
+  "com.nrinaudo"                 %% "kantan.csv-refined"             % KantanCsvVersion,
   "com.softwaremill.sttp.client" %% "async-http-client-backend-cats" % SttpVersion,
   "com.softwaremill.sttp.client" %% "circe"                          % SttpVersion,
   "com.softwaremill.sttp.client" %% "core"                           % SttpVersion,

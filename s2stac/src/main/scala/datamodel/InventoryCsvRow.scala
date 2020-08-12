@@ -9,13 +9,14 @@ import eu.timepit.refined.types.numeric.PosInt
 import eu.timepit.refined.types.string.NonEmptyString
 import io.circe.Error
 
-import java.time.Instant
+import java.time.{Instant, LocalDate}
 
 final case class InventoryCsvRow(
     bucket: NonEmptyString,
     key: DataPath,
     size: PosInt,
-    lastModified: Instant
+    lastModified: Instant,
+    imageDate: LocalDate
 )
 
 object InventoryCsvRow {
