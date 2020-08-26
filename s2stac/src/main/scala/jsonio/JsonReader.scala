@@ -16,7 +16,7 @@ import io.chrisdavenport.log4cats.Logger
 import io.circe.parser.decode
 import io.circe.{CursorOp, Decoder, DecodingFailure, Error, ParsingFailure}
 import retry.RetryDetails.{GivingUp, WillDelayAndRetry}
-import retry.{RetryDetails, RetryPolicy, Sleep, retryingOnSomeErrors}
+import retry.{retryingOnSomeErrors, RetryDetails, RetryPolicy, Sleep}
 
 import scala.concurrent.duration.FiniteDuration
 import scala.reflect.ClassTag
@@ -45,7 +45,7 @@ case class CirceError(path: DataPath, className: String, underlying: Error) exte
         | Here's the problem I ran into:
         |
         |     $message
-        """
+        """.trim.stripMargin
     case DecodingFailure(message, history) =>
       s"""
         | I tried to read a value of type $className from $path.
@@ -74,7 +74,7 @@ class SyncJsonReader[F[_]: Sync: Sleep](s3Client: AmazonS3, retryPolicy: RetryPo
         err match {
           case CirceError(_, _, _) => false
           case _                   => true
-      },
+        },
       onError = (_: Throwable, details: RetryDetails) => {
         details match {
 
