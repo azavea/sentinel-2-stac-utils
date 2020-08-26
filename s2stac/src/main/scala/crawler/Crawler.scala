@@ -13,7 +13,7 @@ import com.azavea.s2stac.datamodel.{
   TileInfo
 }
 import com.azavea.s2stac.jsonio.{JsonReader, JsonWriter}
-import com.azavea.s2stac.{printInfo, printWarn}
+import com.azavea.s2stac.{printDebug, printInfo, printWarn}
 import com.azavea.stac4s._
 import com.azavea.stac4s.extensions.eo.{Band, EOAssetExtension, EOItemExtension}
 import com.azavea.stac4s.syntax._
@@ -27,12 +27,13 @@ import eu.timepit.refined.types.string.NonEmptyString
 import geotrellis.proj4.LatLng
 import geotrellis.vector.methods.Implicits._
 import geotrellis.vector.reproject.Implicits._
+import io.chrisdavenport.log4cats.Logger
 import io.circe.refined._
 import io.circe.syntax._
 
 import java.time.{Instant, ZoneId, ZonedDateTime}
 
-class Crawler[F[_]: Sync: Parallel](
+class Crawler[F[_]: Sync: Parallel: Logger](
     reader: JsonReader[F],
     writer: JsonWriter[F],
     collection: S2Collection,
@@ -44,11 +45,13 @@ class Crawler[F[_]: Sync: Parallel](
     case L2A => "sentinel-s2-l2a"
   }
 
+  val collectionId = s"Sentinel-2 Scenes $collection"
+
   // stashed to need it _eventually_
   val rootCollection = StacCollection(
     "1.0.0-beta1",
     Nil,
-    s"Sentinel-2 Scenes",
+    collectionId,
     Some(s"Sentinel-2 Scenes"),
     s"Sentinel-2 Scenes",
     List("sentinel-2"),
@@ -100,15 +103,15 @@ class Crawler[F[_]: Sync: Parallel](
       case Nil => Sync[F].pure((crawlerState, crawlerState))
       case h :: t =>
         for {
-          _            <- printInfo[F](s"Head bucket: ${h.bucket}")
+          _            <- printDebug[F](s"Head bucket: ${h.bucket}")
           productInfoE <- getProductInfo(h)
           tileInfoE    <- getTileInfo(h)
           newState <- (productInfoE, tileInfoE).tupled match {
             case Right((productInfo, tileInfo)) =>
               writeItem(crawlerState, productInfo, tileInfo)
-            case Left(_) =>
-              printWarn(s"Couldn't decode one of product info or tile info for ${h.key}") map { _ =>
-                crawlerState
+            case Left(firstErr) =>
+              printWarn(firstErr.toMessage) map { _ =>
+                CrawlerState.withErrorPath(h.key)
               }
           }
           next <- step(
@@ -152,13 +155,13 @@ class Crawler[F[_]: Sync: Parallel](
     val itemChildState =
       CrawlerState.dayCatalogChild(DayCatalogId(dayHistory.toID), ItemId(NonEmptyString.unsafeFrom(item.id)))
 
-    printInfo[F](s"Writing root collection ")
-    printInfo[F](s"Writing item ${item.id}") *>
-      writer
-        .toPath[StacItem](
-          DataPath(NonEmptyString.unsafeFrom(s"${dayHistory.toPath(catalogRoot)}/items/${item.id}.json")),
-          item
-        ) *>
+    val itemPath = DataPath(NonEmptyString.unsafeFrom(s"${dayHistory.toPath(catalogRoot)}/items/${item.id}.json"))
+
+    writer
+      .toPath[StacItem](
+        itemPath,
+        item
+      ) *> printInfo[F](s"Wrote item ${item.id} to $itemPath") *>
       List(
         makeUtmZoneParent(history, tileInfo.utmZone),
         makeUtmLatitudeBandParent(history, bandHistory),
@@ -176,7 +179,7 @@ class Crawler[F[_]: Sync: Parallel](
   private def writeFirstParentCatalogs(history: CrawlerState): F[Unit] = {
     val linkMap = history.dayChildLinks.mapValues { itemIds =>
       itemIds map { itemId =>
-        StacLink(s"./items/${itemId.value}.json", StacLinkType.Child, Some(`application/json`), None)
+        StacLink(s"./items/${itemId.value}.json", StacLinkType.Item, Some(`application/json`), None)
       }
     }
     history.days.keySet.toList traverse { (dayHistory: History.DayHistory) =>
@@ -304,7 +307,7 @@ class Crawler[F[_]: Sync: Parallel](
 
   private def makeUtmZoneParent(history: CrawlerState, zone: UtmZone): F[CrawlerState] =
     if (history.utmZones.contains(zone)) {
-      printInfo[F](s"Zone $zone already exists") *>
+      printDebug[F](s"Zone $zone already exists") *>
         Sync[F].pure(CrawlerState.initial)
     } else {
       val zoneCatalog = StacCatalog(
@@ -318,14 +321,14 @@ class Crawler[F[_]: Sync: Parallel](
           StacLink("../collection.json", StacLinkType.StacRoot, Some(`application/json`), None)
         )
       )
-      printInfo[F](s"Zone $zone did not exist!") map { _ =>
+      printDebug[F](s"Zone $zone did not exist!") map { _ =>
         CrawlerState.zoneHistory(zone, zoneCatalog)
       }
     }
 
   private def makeUtmLatitudeBandParent(history: CrawlerState, band: History.BandHistory): F[CrawlerState] =
     if (history.utmBands.contains(band)) {
-      printInfo[F](s"Band ${band.toID} already exists") *>
+      printDebug[F](s"Band ${band.toID} already exists") *>
         Sync[F].pure(CrawlerState.initial)
     } else {
       val bandCatalog = StacCatalog(
@@ -339,7 +342,7 @@ class Crawler[F[_]: Sync: Parallel](
           StacLink("../../collection.json", StacLinkType.StacRoot, Some(`application/json`), None)
         )
       )
-      printInfo[F](s"Band ${band.toID} did not exit!") map { _ =>
+      printDebug[F](s"Band ${band.toID} did not exit!") map { _ =>
         CrawlerState.bandHistory(band, bandCatalog) `combine` CrawlerState.zoneCatalogChild(
           ZoneCatalogId(NonEmptyString.unsafeFrom(s"${band.zone}")),
           band
@@ -349,7 +352,7 @@ class Crawler[F[_]: Sync: Parallel](
 
   private def makeGridSquareParent(history: CrawlerState, square: History.GridSquareHistory): F[CrawlerState] =
     if (history.utmGridSquares.contains(square)) {
-      printInfo[F](s"Square ${square.toID} already exists") *>
+      printDebug[F](s"Square ${square.toID} already exists") *>
         Sync[F].pure(CrawlerState.initial)
     } else {
       val squareCatalog = StacCatalog(
@@ -363,7 +366,7 @@ class Crawler[F[_]: Sync: Parallel](
           StacLink("../../../collection.json", StacLinkType.StacRoot, Some(`application/json`), None)
         )
       )
-      printInfo[F](s"Square ${square.toID} did not exist!") map { _ =>
+      printDebug[F](s"Square ${square.toID} did not exist!") map { _ =>
         CrawlerState.gridSquareHistory(square, squareCatalog) `combine` CrawlerState.bandCatalogChild(
           BandCatalogId(square.band.toID),
           square
@@ -373,7 +376,7 @@ class Crawler[F[_]: Sync: Parallel](
 
   private def makeYearParent(history: CrawlerState, yearHistory: History.YearHistory) =
     if (history.years.contains(yearHistory)) {
-      printInfo[F](s"Year ${yearHistory.toID} already exists") *>
+      printDebug[F](s"Year ${yearHistory.toID} already exists") *>
         Sync[F].pure(CrawlerState.initial)
     } else {
       val yearCatalog = StacCatalog(
@@ -387,7 +390,7 @@ class Crawler[F[_]: Sync: Parallel](
           StacLink("../../../../collection.json", StacLinkType.StacRoot, Some(`application/json`), None)
         )
       )
-      printInfo[F](s"Year ${yearHistory.toID} did not exist!") map { _ =>
+      printDebug[F](s"Year ${yearHistory.toID} did not exist!") map { _ =>
         CrawlerState.yearHistory(yearHistory, yearCatalog) `combine` CrawlerState.squareCatalogChild(
           SquareCatalogId(yearHistory.square.toID),
           yearHistory
@@ -397,7 +400,7 @@ class Crawler[F[_]: Sync: Parallel](
 
   private def makeMonthParent(history: CrawlerState, monthHistory: History.MonthHistory) =
     if (history.months.contains(monthHistory)) {
-      printInfo[F](s"month ${monthHistory.toID} already exists") *>
+      printDebug[F](s"month ${monthHistory.toID} already exists") *>
         Sync[F].pure(CrawlerState.initial)
     } else {
       val monthCatalog = StacCatalog(
@@ -411,7 +414,7 @@ class Crawler[F[_]: Sync: Parallel](
           StacLink("../../../../../collection.json", StacLinkType.StacRoot, Some(`application/json`), None)
         )
       )
-      printInfo[F](s"month ${monthHistory.toID} did not exist!") map { _ =>
+      printDebug[F](s"month ${monthHistory.toID} did not exist!") map { _ =>
         CrawlerState.monthHistory(monthHistory, monthCatalog) `combine` CrawlerState.yearCatalogChild(
           YearCatalogId(monthHistory.year.toID),
           monthHistory
@@ -421,7 +424,7 @@ class Crawler[F[_]: Sync: Parallel](
 
   private def makeDayParent(history: CrawlerState, dayHistory: History.DayHistory) =
     if (history.days.contains(dayHistory)) {
-      printInfo[F](s"day ${dayHistory.toID} already exists") *>
+      printDebug[F](s"day ${dayHistory.toID} already exists") *>
         Sync[F].pure(CrawlerState.initial)
     } else {
       val dayCatalog = StacCatalog(
@@ -435,7 +438,7 @@ class Crawler[F[_]: Sync: Parallel](
           StacLink("../../../../../../collection.json", StacLinkType.StacRoot, Some(`application/json`), None)
         )
       )
-      printInfo[F](s"day ${dayHistory.toID} did not exist!") map { _ =>
+      printDebug[F](s"day ${dayHistory.toID} did not exist!") map { _ =>
         CrawlerState.dayHistory(dayHistory, dayCatalog) `combine` CrawlerState.monthCatalogChild(
           MonthCatalogId(dayHistory.month.toID),
           dayHistory
@@ -551,7 +554,7 @@ class Crawler[F[_]: Sync: Parallel](
         StacLink("../../../../../../../collection.json", StacLinkType.Collection, Some(`application/json`), None)
       ),
       assets = getItemBandAssets(tileInfo) ++ getMetadataItemAssets(tileInfo),
-      collection = Some("Sentinel-2 Scenes"),
+      collection = Some(collectionId),
       properties = Map(
         "datetime"               -> tileInfo.timestamp.asJson,
         "sentinel:sequence"      -> tileInfo.path.value.value.last.asJson,

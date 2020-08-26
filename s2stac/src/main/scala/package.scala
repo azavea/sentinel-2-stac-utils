@@ -5,6 +5,7 @@ import cats.syntax.either._
 import com.lightbend.emoji.ShortCodes.Defaults._
 import com.lightbend.emoji.ShortCodes.Implicits._
 import com.monovore.decline.Argument
+import io.chrisdavenport.log4cats.Logger
 import io.estatico.newtype.Coercible
 import kantan.csv.{CellDecoder, DecodeError}
 
@@ -30,19 +31,15 @@ package object s2stac {
     }
   })
 
-  def printDebug[F[_]: Sync](s: String): F[Unit] = Sync[F].delay {
-    println(fansi.Color.Green(e":bug: $s"))
-  }
+  def printDebug[F[_]: Sync](s: String)(implicit logger: Logger[F]): F[Unit] =
+    logger.debug(fansi.Color.Green(e":bug: $s").toString)
 
-  def printInfo[F[_]: Sync](s: String): F[Unit] = Sync[F].delay {
-    println(fansi.Color.Cyan(e":wave: $s"))
-  }
+  def printInfo[F[_]: Sync](s: String)(implicit logger: Logger[F]): F[Unit] =
+    logger.info(fansi.Color.Cyan(e":wave: $s").toString)
 
-  def printWarn[F[_]: Sync](s: String): F[Unit] = Sync[F].delay {
-    println(fansi.Color.Yellow(e":warning: $s"))
-  }
+  def printWarn[F[_]: Sync](s: String)(implicit logger: Logger[F]): F[Unit] =
+    logger.warn(fansi.Color.Yellow(e":warning: $s").toString)
 
-  def printError[F[_]: Sync](s: String): F[Unit] = Sync[F].delay {
-    println(fansi.Color.Red(e":x: $s"))
-  }
+  def printError[F[_]: Sync](s: String)(implicit logger: Logger[F]): F[Unit] =
+    logger.error(fansi.Color.Red(e":x: $s").toString)
 }

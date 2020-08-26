@@ -22,7 +22,8 @@ final case class CrawlerState(
     squareChildLinks: Map[SquareCatalogId, Set[History.YearHistory]],
     yearChildLinks: Map[YearCatalogId, Set[History.MonthHistory]],
     monthChildLinks: Map[MonthCatalogId, Set[History.DayHistory]],
-    dayChildLinks: Map[DayCatalogId, Set[ItemId]]
+    dayChildLinks: Map[DayCatalogId, Set[ItemId]],
+    errorPaths: Set[DataPath]
 )
 
 object CrawlerState {
@@ -44,7 +45,8 @@ object CrawlerState {
       x.squareChildLinks `combine` y.squareChildLinks,
       x.yearChildLinks `combine` y.yearChildLinks,
       x.monthChildLinks `combine` y.monthChildLinks,
-      x.dayChildLinks `combine` y.dayChildLinks
+      x.dayChildLinks `combine` y.dayChildLinks,
+      x.errorPaths `combine` y.errorPaths
     )
   }
 
@@ -64,7 +66,8 @@ object CrawlerState {
     Map.empty,
     Map.empty,
     Map.empty,
-    Map.empty
+    Map.empty,
+    Set.empty
   )
 
   def dataSequenceHistory(dataSequenceHistory: History.DataSequenceHistory) = initial.copy(
@@ -120,5 +123,7 @@ object CrawlerState {
   )
 
   def withRemaining(rows: List[InventoryCsvRow]): CrawlerState => CrawlerState = remainingLens.modify(_ => rows)
+
+  def withErrorPath(path: DataPath): CrawlerState = initial.copy(errorPaths = Set(path))
 
 }

@@ -4,11 +4,14 @@ ThisBuild / scalaVersion := "2.12.12"
 
 val AWSVersion         = "1.11.751"
 val BetterFilesVersion = "3.9.1"
+val CatsRetryVersion   = "1.1.1"
 val CirceVersion       = "0.13.0"
 val DeclineVersion     = "1.2.0"
 val EmojiVersion       = "1.2.1"
 val FansiVersion       = "0.2.7"
 val GeoTrellisVersion  = "3.4.1"
+val Log4CatsVersion    = "1.1.1"
+val LogbackVersion     = "1.2.3"
 val KantanCsvVersion   = "0.6.1"
 val MonocleVersion     = "2.0.4"
 val NewtypeVersion     = "0.4.4"
@@ -17,9 +20,11 @@ val Stac4sVersion      = "0.0.12"
 val SttpVersion        = "2.2.1"
 
 val s2StacDependencies = List(
+  "ch.qos.logback"               % "logback-classic"                 % LogbackVersion,
   "com.amazonaws"                % "aws-java-sdk-core"               % AWSVersion,
   "com.amazonaws"                % "aws-java-sdk-s3"                 % AWSVersion,
   "com.azavea.stac4s"            %% "core"                           % Stac4sVersion,
+  "com.github.cb372"             %% "cats-retry"                     % CatsRetryVersion,
   "com.github.julien-truffaut"   %% "monocle-core"                   % MonocleVersion,
   "com.github.julien-truffaut"   %% "monocle-macro"                  % MonocleVersion,
   "com.github.pathikrit"         %% "better-files"                   % BetterFilesVersion,
@@ -35,6 +40,8 @@ val s2StacDependencies = List(
   "com.softwaremill.sttp.client" %% "circe"                          % SttpVersion,
   "com.softwaremill.sttp.client" %% "core"                           % SttpVersion,
   "eu.timepit"                   %% "refined"                        % RefinedVersion,
+  "io.chrisdavenport"            %% "log4cats-core"                  % Log4CatsVersion,
+  "io.chrisdavenport"            %% "log4cats-slf4j"                 % Log4CatsVersion,
   "io.circe"                     %% "circe-generic"                  % CirceVersion,
   "io.circe"                     %% "circe-refined"                  % CirceVersion,
   "io.estatico"                  %% "newtype"                        % NewtypeVersion,
@@ -71,6 +78,7 @@ lazy val s2stac = (project in file("./s2stac"))
     addCompilerPlugin(
       scalafixSemanticdb
     ),
+    addCompilerPlugin("org.typelevel" %% "kind-projector" % "0.11.0" cross CrossVersion.full),
     ThisBuild / scalacOptions += "-Yrangepos",
     ThisBuild / scalafixDependencies += "com.github.liancheng" %% "organize-imports" % "0.4.0"
   )
